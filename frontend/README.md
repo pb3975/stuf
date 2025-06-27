@@ -1,69 +1,62 @@
-# React + TypeScript + Vite
+# Stuf Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript frontend for the Stuf inventory management system.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Available Scripts
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run ESLint
+- `npm run test` - Run tests in watch mode
+- `npm run test:ci` - Run tests once (for CI)
+- `npm run type-check` - Run TypeScript type checking
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Testing
+
+The frontend uses simplified, reliable tests designed to work consistently in CI environments:
+
+### Test Philosophy
+- **Simple & Fast**: Tests focus on basic rendering and component structure
+- **No External Dependencies**: All external APIs and services are mocked
+- **CI-Friendly**: Tests run quickly and don't depend on network or filesystem
+- **Minimal Setup**: Reduced test configuration to avoid version conflicts
+
+### Test Structure
+- `src/App.test.tsx` - Basic app rendering tests
+- `src/test/setup.ts` - Minimal test setup with essential mocks
+- `vitest.config.ts` - Simplified Vitest configuration
+
+### Running Tests
+```bash
+# Development (watch mode)
+npm run test
+
+# CI/Production (run once)
+npm run test:ci
 ```
+
+## Architecture
+
+- **React 19** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** for styling
+- **Radix UI** for accessible components
+- **React Router** for navigation
+- **Axios** for API communication
+- **Vitest** for testing
+
+## Key Features
+
+- Responsive design optimized for mobile and desktop
+- Dark/light theme support
+- AI-powered SmartAdd for item recognition
+- QR code generation and scanning
+- Real-time inventory management
+- Advanced search and filtering

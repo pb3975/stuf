@@ -5,26 +5,11 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  // @ts-expect-error - Vitest extends Vite config but types don't reflect this
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    css: true,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
-      exclude: [
-        'node_modules/',
-        'src/test/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        'dist/',
-        'build/',
-        'coverage/',
-        '**/*.test.*',
-        '**/*.spec.*'
-      ]
-    }
+    setupFiles: ['./src/test/setup.ts']
   },
   resolve: {
     alias: {
