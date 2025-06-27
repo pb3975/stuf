@@ -3,7 +3,7 @@ interface Item {
   name: string;
   category: string;
   quantity: number;
-  custom_attributes: Record<string, any>;
+  custom_attributes: Record<string, string | number | boolean>;
   image_url?: string;
   qr_code_url?: string;
 }

@@ -106,7 +106,7 @@ const EditItem: React.FC = () => {
     const attributesObject = customAttributes.reduce((acc, attr) => {
       if (attr.key) acc[attr.key] = attr.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, string | number | boolean>);
 
     try {
       const updatedItem = { ...item, image_url: imageUrl, custom_attributes: attributesObject };
