@@ -7,13 +7,10 @@ This directory contains GitHub Actions workflows for automated testing and quali
 ### 1. CI/CD Pipeline (`.github/workflows/ci.yml`)
 **Comprehensive testing pipeline that runs on every push and pull request to main branch.**
 
-- **Backend Tests**: Unit tests across Python 3.9-3.12
+- **Backend Tests**: Unit tests across Python 3.9-3.11
 - **Frontend Tests**: Linting, type checking, and build verification
 - **Security Scan**: Dependency vulnerability scanning
 - **Integration Tests**: Full API testing with SQLite and PostgreSQL
-- **Docker Build**: Container build verification
-- **Code Quality**: Black, isort, flake8 checks
-- **Performance Tests**: Load testing with Locust
 
 ### 2. Pull Request Checks (`.github/workflows/pr-checks.yml`)
 **Essential checks for pull requests - faster and more reliable.**
@@ -21,7 +18,6 @@ This directory contains GitHub Actions workflows for automated testing and quali
 - **Backend Checks**: Syntax validation, import testing, database creation
 - **Frontend Checks**: Linting and build verification
 - **Security Scan**: Basic security vulnerability checks
-- **Code Quality**: Formatting and linting checks
 - **Integration Test**: API endpoint verification
 
 ## Test Structure
@@ -85,8 +81,8 @@ cd frontend && npm run build
 
 ## Code Quality
 
-- **Python**: Black (formatting), isort (imports), flake8 (linting)
 - **TypeScript**: ESLint, TypeScript compiler
+- **Python**: Manual code quality tools available (Black, isort, flake8) but not enforced in CI
 
 ## Environment Variables for CI
 
