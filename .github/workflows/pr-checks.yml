@@ -1,0 +1,244 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-checks:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-cov httpx requests
+        
+    - name: Run syntax check
+      run: |
+        python -m py_compile main.py
+        
+    - name: Run basic tests
+      env:
+        DATABASE_URL: sqlite:///./test_inventory.db
+        GEMINI_API_KEY: test_key_for_ci
+      run: |
+        python -c "
+        import sys
+        sys.path.append('.')
+        try:
+            from main import app
+            print('✓ Main application imports successfully')
+        except Exception as e:
+            print(f'✗ Import error: {e}')
+            sys.exit(1)
+        "
+        
+    - name: Test database creation
+      env:
+        DATABASE_URL: sqlite:///./test_inventory.db
+        GEMINI_API_KEY: test_key_for_ci
+      run: |
+        python -c "
+        import sys
+        sys.path.append('.')
+        try:
+            from main import engine, Base
+            Base.metadata.create_all(bind=engine)
+            print('✓ Database tables created successfully')
+        except Exception as e:
+            print(f'✗ Database error: {e}')
+            sys.exit(1)
+        "
+
+  frontend-checks:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+      
+    - name: Run frontend linting
+      working-directory: ./frontend
+      run: npm run lint
+      
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+      
+    - name: Check build output
+      working-directory: ./frontend
+      run: |
+        if [ -d "dist" ]; then
+          echo "✓ Frontend build successful"
+          ls -la dist/
+        else
+          echo "✗ Frontend build failed - no dist directory"
+          exit 1
+        fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        
+    - name: Run safety check (Python dependencies)
+      run: |
+        pip install -r requirements.txt
+        safety check --json --output safety-report.json || true
+        safety check || echo "⚠️ Security vulnerabilities found in dependencies"
+        
+    - name: Run bandit security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . -ll || echo "⚠️ Security issues found in code"
+        
+    - name: Set up Node.js for frontend security scan
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+      
+    - name: Run npm audit
+      working-directory: ./frontend
+      run: npm audit --audit-level moderate || echo "⚠️ Frontend security vulnerabilities found"
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install code quality tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black isort flake8
+        
+    - name: Check code formatting with Black
+      run: |
+        black --check --diff . || echo "⚠️ Code formatting issues found. Run 'black .' to fix."
+        
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only --diff . || echo "⚠️ Import sorting issues found. Run 'isort .' to fix."
+        
+    - name: Run flake8 linting
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Install backend dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+      
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+      
+    - name: Start backend server
+      env:
+        DATABASE_URL: sqlite:///./test_inventory.db
+        GEMINI_API_KEY: test_key_for_ci
+      run: |
+        python main.py &
+        SERVER_PID=$!
+        echo $SERVER_PID > server.pid
+        sleep 5
+        
+    - name: Test API endpoints
+      run: |
+        # Test if server is responding
+        curl -f http://localhost:8000/docs || (echo "✗ Server not responding" && exit 1)
+        echo "✓ Server is responding"
+        
+        # Test basic API endpoints
+        curl -f http://localhost:8000/items/ || (echo "✗ Items endpoint failed" && exit 1)
+        echo "✓ Items endpoint working"
+        
+        curl -f http://localhost:8000/categories/ || (echo "✗ Categories endpoint failed" && exit 1)
+        echo "✓ Categories endpoint working"
+        
+    - name: Cleanup
+      run: |
+        if [ -f server.pid ]; then
+          kill $(cat server.pid) || true
+          rm server.pid
+        fi 

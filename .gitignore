@@ -95,6 +95,17 @@ coverage/
 htmlcov/
 .pytest_cache/
 .tox/
+*.cover
+.hypothesis/
+.coverage.*
+coverage.xml
+*.lcov
+test_*.db
+test-results/
+playwright-report/
+test-results/
+frontend/coverage/
+.vitest/
 
 # Temporary files
 *.tmp
