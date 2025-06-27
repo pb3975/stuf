@@ -14,5 +14,5 @@ opencv-python==4.8.1.78
 pyzbar==0.1.9
 numpy==1.24.3
 google-generativeai==0.3.2
-pillow==10.1.0
+pillow==10.3.0
 qrcode==7.4.2
