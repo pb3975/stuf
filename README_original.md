@@ -9,7 +9,7 @@
   ![React](https://img.shields.io/badge/React-18+-61DAFB.svg)
   ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)
   ![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688.svg)
-  ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+  ![License](https://img.shields.io/badge/License-MIT-green.svg)
   ![Self-Hosted](https://img.shields.io/badge/Self--Hosted-✓-brightgreen.svg)
 </div>
 
@@ -216,7 +216,7 @@ stuf/
 
 ## 📄 License & Contributing
 
-This project is open source under the [Apache License 2.0](LICENSE).
+This project is open source under the [MIT License](LICENSE).
 
 **Contributing:**
 1. Fork the repository
@@ -225,3 +225,14 @@ This project is open source under the [Apache License 2.0](LICENSE).
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## 📞 Support
+
+For issues or questions:
+1. Check the troubleshooting section above
+2. Visit `/debug` route for connectivity tests
+3. Open a GitHub issue with detailed information
+4. Include browser console logs when applicable
+
+---
+
+Built with ❤️ using React, TypeScript, FastAPI, and Google Gemini AI. 

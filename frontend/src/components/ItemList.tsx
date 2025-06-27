@@ -65,13 +65,13 @@ const ItemList: React.FC = () => {
   const [bulkQuantityChange, setBulkQuantityChange] = useState<string>('');
   const [isProcessingBulk, setIsProcessingBulk] = useState<boolean>(false);
 
-  const fetchItems = async () => {
-    try {
+    const fetchItems = async () => {
+      try {
       console.log('📦 Fetching items...');
       const response = await axios.get(getApiUrl('/items/'));
       console.log('✅ Items fetched successfully:', response.data);
-      setItems(response.data);
-    } catch (error) {
+        setItems(response.data);
+      } catch (error) {
       console.error('❌ Error fetching items:', error);
       if (error instanceof Error) {
         console.error('Error message:', error.message);
@@ -505,9 +505,9 @@ const ItemList: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
+          {categories.map((category) => (
                 <SelectItem key={category} value={category}>
-                  {category}
+              {category}
                 </SelectItem>
               ))}
             </SelectContent>

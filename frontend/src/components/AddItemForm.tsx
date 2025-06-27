@@ -251,20 +251,20 @@ const AddItemForm: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      let imageUrl = null;
-      if (image) {
-        const formData = new FormData();
-        formData.append('file', image);
+    let imageUrl = null;
+    if (image) {
+      const formData = new FormData();
+      formData.append('file', image);
         const response = await axios.post(getApiUrl('/upload/'), formData, { 
           headers: { 'Content-Type': 'multipart/form-data' } 
         });
         imageUrl = response.data.image_url;
-      }
+    }
 
-      const attributesObject = customAttributes.reduce((acc, attr) => {
-        if (attr.key) acc[attr.key] = attr.value;
-        return acc;
-      }, {} as Record<string, any>);
+    const attributesObject = customAttributes.reduce((acc, attr) => {
+      if (attr.key) acc[attr.key] = attr.value;
+      return acc;
+    }, {} as Record<string, any>);
 
       await axios.post(getApiUrl('/items/'), {
         name,
@@ -602,11 +602,11 @@ const AddItemForm: React.FC = () => {
                         <Trash2 className="h-4 w-4 sm:mr-2" />
                         <span className="sm:hidden">Remove</span>
                       </Button>
-                    </div>
-                  ))}
+            </div>
+          ))}
                 </div>
               )}
-            </div>
+        </div>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1 h-12 sm:h-10">
@@ -616,7 +616,7 @@ const AddItemForm: React.FC = () => {
                 Cancel
               </Button>
             </div>
-          </form>
+      </form>
         </CardContent>
       </Card>
     </div>
