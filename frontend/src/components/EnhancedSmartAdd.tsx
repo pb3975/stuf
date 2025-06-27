@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
@@ -14,16 +13,13 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { 
-  Camera, 
   Loader2, 
-  CheckCircle, 
   AlertCircle, 
   Sparkles, 
   ImageIcon,
   DollarSign,
   Calendar,
   Layers,
-  Plus,
   X
 } from 'lucide-react';
 import CameraCapture from './CameraCapture';
