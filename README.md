@@ -225,14 +225,3 @@ This project is open source under the [Apache License 2.0](LICENSE).
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📞 Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Visit `/debug` route for connectivity tests
-3. Open a GitHub issue with detailed information
-4. Include browser console logs when applicable
-
----
-
-Built with ❤️ using React, TypeScript, FastAPI, and Google Gemini AI. 
