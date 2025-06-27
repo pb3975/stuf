@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Secondary color: #4A4A4A (Stuf Gray)
   - Updated all theme variables for light and dark modes
   - Consistent brand color application across all UI components
+- **Enhanced Documentation**: Comprehensive self-hosting documentation
+  - Explicit self-hosted positioning and benefits
+  - 5-minute quickstart guide with system requirements
+  - Detailed dependency installation instructions
+  - Multiple deployment options (local, production, Docker, VPS)
+  - Troubleshooting guide for common setup issues
+  - Backup strategy and maintenance guidelines
+- **Security Enhancements**: Production-ready security improvements
+  - Environment-based CORS configuration for production deployment
+  - Comprehensive production security checklist
+  - Security best practices documentation
+  - Configurable allowed origins for better access control
 
 ### Planned
 - Barcode scanning functionality

@@ -48,6 +48,7 @@ const AddItemForm: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SmartAddResponse | null>(null);
   const [showSmartAdd, setShowSmartAdd] = useState(false);
+  const [isIncrementing, setIsIncrementing] = useState(false);
 
   // Check if user is on mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -57,8 +58,31 @@ const AddItemForm: React.FC = () => {
     if (files) {
       const fileArray = Array.from(files);
       const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
-      setSmartAddFiles(imageFiles.slice(0, 3)); // Max 3 photos
-      setAnalysisResult(null);
+      const newFiles = imageFiles.slice(0, 3); // Max 3 photos
+      
+      // Only clear analysis result if files actually changed
+      const filesChanged = newFiles.length !== smartAddFiles.length || 
+        newFiles.some((file, index) => file.name !== smartAddFiles[index]?.name);
+      
+      setSmartAddFiles(newFiles);
+      
+      // Only clear analysis result if files actually changed
+      if (filesChanged) {
+        console.log('📁 Files changed, clearing analysis result');
+        
+        // On mobile, if there's an existing analysis with similar items, confirm before clearing
+        if (isMobile && analysisResult?.success && analysisResult.suggestions?.similar_items?.length) {
+          const shouldClear = confirm('You have existing analysis results with similar items. Selecting new photos will clear these results. Continue?');
+          if (!shouldClear) {
+            // Revert to original files if user cancels
+            return;
+          }
+        }
+        
+        setAnalysisResult(null);
+      } else {
+        console.log('📁 Same files selected, keeping analysis result');
+      }
     }
   };
 
@@ -156,15 +180,42 @@ const AddItemForm: React.FC = () => {
   };
 
   const handleIncrementExisting = async (itemId: number, incrementBy: number) => {
+    if (isIncrementing) {
+      console.log('🔄 Increment already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    setIsIncrementing(true);
     try {
+      console.log(`🔄 Attempting to increment item ${itemId} by ${incrementBy}`);
+      
+      const apiUrl = getApiUrl(`/items/${itemId}/increment?increment_by=${incrementBy}`);
+      console.log(`📡 Increment API URL: ${apiUrl}`);
+      
       // Use the new increment endpoint
-      await axios.post(getApiUrl(`/items/${itemId}/increment?increment_by=${incrementBy}`));
+      const response = await axios.post(apiUrl);
+      console.log('✅ Increment successful:', response.data);
       
       // Navigate back to the main page
       navigate('/');
     } catch (error) {
-      console.error('Error incrementing item quantity:', error);
-      // Could add a toast notification here for better UX
+      console.error('❌ Error incrementing item quantity:', error);
+      
+      // Enhanced error logging for mobile debugging
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        if (axiosError.response) {
+          console.error('Increment Response status:', axiosError.response.status);
+          console.error('Increment Response data:', axiosError.response.data);
+        } else if (axiosError.request) {
+          console.error('Increment No response received:', axiosError.request);
+        }
+      }
+      
+      // Show error to user (you could replace this with a toast notification)
+      alert(`Failed to update item quantity: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsIncrementing(false);
     }
   };
 
@@ -379,9 +430,17 @@ const AddItemForm: React.FC = () => {
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleIncrementExisting(item.id, analysisResult?.suggestions?.quantity || 1)}
+                                                disabled={isIncrementing}
                                                 className="w-full sm:w-auto sm:ml-2 h-9"
                                               >
-                                                +{analysisResult?.suggestions?.quantity || 1}
+                                                {isIncrementing ? (
+                                                  <>
+                                                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                    Adding...
+                                                  </>
+                                                ) : (
+                                                  `+${analysisResult?.suggestions?.quantity || 1}`
+                                                )}
                                               </Button>
                                             </div>
                                           ))}

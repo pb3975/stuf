@@ -5,10 +5,11 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from sqlalchemy import create_engine, Column, Integer, String, JSON
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, Mapped, mapped_column
 import os
 import shutil
 import qrcode
+from qrcode.constants import ERROR_CORRECT_L
 import google.generativeai as genai
 import json
 import base64
@@ -22,9 +23,13 @@ load_dotenv()
 
 app = FastAPI(title="Stuf - Smart Inventory Management", description="API for managing household items like 3D printer filament, ammunition, IoT supplies, etc.")
 
+# Environment-based CORS configuration for better security
+DEBUG_MODE = os.getenv("DEBUG", "true").lower() == "true"
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",") if not DEBUG_MODE else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development - more permissive for mobile access
+    allow_origins=ALLOWED_ORIGINS,  # Environment-configurable origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,15 +53,15 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class Item(Base):
+class Item(Base):  # type: ignore
     __tablename__ = 'items'
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    category = Column(String, index=True)
-    quantity = Column(Integer)
-    custom_attributes = Column(JSON, default={})
-    image_url = Column(String, nullable=True)
-    qr_code_url = Column(String, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    category: Mapped[str] = mapped_column(String, index=True)
+    quantity: Mapped[int] = mapped_column(Integer)
+    custom_attributes: Mapped[dict] = mapped_column(JSON, default={})
+    image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    qr_code_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
@@ -91,7 +96,7 @@ def generate_qr_code(item_id: int, host: str = "localhost:5174"):
     qr_code_path = os.path.join("qrcodes", f"{item_id}.png")
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=ERROR_CORRECT_L,
         box_size=10,
         border=4,
     )
@@ -114,6 +119,8 @@ app.add_event_handler("startup", generate_all_qr_codes_on_startup)
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
     os.makedirs("uploads", exist_ok=True)
+    if file.filename is None:
+        raise HTTPException(status_code=400, detail="No filename provided")
     file_path = os.path.join("uploads", file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -345,7 +352,9 @@ def increment_item_quantity(item_id: int, increment_by: int = 1, db: Session = D
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    item.quantity = item.quantity + increment_by
+    # Fix SQLAlchemy column assignment issue
+    current_quantity = item.quantity if isinstance(item.quantity, int) else 0
+    item.quantity = current_quantity + increment_by
     db.commit()
     db.refresh(item)
     return {"detail": f"Item quantity incremented by {increment_by}", "new_quantity": item.quantity}
