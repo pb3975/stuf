@@ -12,25 +12,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Camera, Loader2, CheckCircle, AlertCircle, Sparkles, ImageIcon } from 'lucide-react';
+import { Trash2, Plus, Camera, Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { getApiUrl } from '../lib/config';
+import type { ApiError, SmartAddSuggestion } from '../types/api-error';
 
 interface SmartAddResponse {
   success: boolean;
   confidence: number;
-  suggestions?: {
-    name: string;
-    category: string;
-    quantity: number;
-    custom_attributes: Record<string, any>;
-    similar_items?: Array<{
-      id: number;
-      name: string;
-      quantity: number;
-      category: string;
-    }>;
-  };
+  suggestions?: SmartAddSuggestion;
   error_message?: string;
 }
 
@@ -132,7 +122,7 @@ const AddItemForm: React.FC = () => {
       }
       // Check if it's an axios error
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
+        const axiosError = error as ApiError;
         if (axiosError.response) {
           console.error('SmartAdd Response status:', axiosError.response.status);
           console.error('SmartAdd Response data:', axiosError.response.data);
@@ -203,7 +193,7 @@ const AddItemForm: React.FC = () => {
       
       // Enhanced error logging for mobile debugging
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
+        const axiosError = error as ApiError;
         if (axiosError.response) {
           console.error('Increment Response status:', axiosError.response.status);
           console.error('Increment Response data:', axiosError.response.data);
@@ -264,7 +254,7 @@ const AddItemForm: React.FC = () => {
     const attributesObject = customAttributes.reduce((acc, attr) => {
       if (attr.key) acc[attr.key] = attr.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, string>);
 
       await axios.post(getApiUrl('/items/'), {
         name,
@@ -602,11 +592,11 @@ const AddItemForm: React.FC = () => {
                         <Trash2 className="h-4 w-4 sm:mr-2" />
                         <span className="sm:hidden">Remove</span>
                       </Button>
-            </div>
-          ))}
+                    </div>
+                  ))}
                 </div>
               )}
-        </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1 h-12 sm:h-10">
@@ -616,7 +606,7 @@ const AddItemForm: React.FC = () => {
                 Cancel
               </Button>
             </div>
-      </form>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -1,201 +1,185 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
-import { getApiUrl, getApiBaseUrl } from '../lib/config';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Loader2, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { getApiUrl } from '../lib/config';
+import type { TestResult, ApiError } from '../types/api-error';
 
 const ConnectionTest: React.FC = () => {
-  const [testResults, setTestResults] = useState<any[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [smartAddResult, setSmartAddResult] = useState<{ status: string; message: string }>({ status: '', message: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<TestResult[]>([]);
 
   const runTests = async () => {
-    setIsRunning(true);
-    const results: any[] = [];
-    
-    // Test 1: Configuration
-    const apiBaseUrl = getApiBaseUrl();
-    results.push({
-      test: 'Configuration',
-      status: 'success',
-      message: `API Base URL: ${apiBaseUrl}`,
-      details: {
-        hostname: window.location.hostname,
-        host: window.location.host,
-        protocol: window.location.protocol,
-        apiBaseUrl
-      }
-    });
+    setIsLoading(true);
+    const results: TestResult[] = [];
 
-    // Test 2: Backend connectivity
+    // Test 1: Basic API Connection
     try {
-      const response = await axios.get(getApiUrl('/items/'), { timeout: 5000 });
+      const response = await axios.get(getApiUrl('/docs'));
       results.push({
-        test: 'Backend Connection',
+        test: 'API Documentation Access',
         status: 'success',
-        message: `Connected successfully (${response.status})`,
-        details: { 
-          status: response.status,
-          itemCount: response.data?.length || 0,
-          data: response.data 
-        }
+        message: `Status: ${response.status}`,
+        data: 'API docs accessible'
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
       results.push({
-        test: 'Backend Connection',
+        test: 'API Documentation Access',
         status: 'error',
-        message: 'Failed to connect to backend',
-        details: {
-          error: error.message,
-          code: error.code,
-          response: error.response?.status,
-          responseData: error.response?.data
-        }
+        message: apiError.message || 'Failed to access API docs'
       });
     }
 
-    // Test 3: Categories endpoint
+    // Test 2: Items Endpoint
     try {
-      const response = await axios.get(getApiUrl('/categories/'), { timeout: 5000 });
+      const response = await axios.get(getApiUrl('/items/'));
+      results.push({
+        test: 'Items Endpoint',
+        status: 'success',
+        message: `Retrieved ${Array.isArray(response.data) ? response.data.length : 0} items`,
+        data: response.data
+      });
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      results.push({
+        test: 'Items Endpoint',
+        status: 'error',
+        message: `Error: ${apiError.response?.status || 'Unknown'} - ${apiError.message}`
+      });
+    }
+
+    // Test 3: Categories Endpoint
+    try {
+      const response = await axios.get(getApiUrl('/categories/'));
       results.push({
         test: 'Categories Endpoint',
         status: 'success',
-        message: `Categories loaded (${response.data?.length || 0} categories)`,
-        details: response.data
+        message: `Found ${Array.isArray(response.data) ? response.data.length : 0} categories`,
+        data: response.data
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
       results.push({
         test: 'Categories Endpoint',
         status: 'error',
-        message: 'Failed to load categories',
-        details: error.message
+        message: `Error: ${apiError.response?.status || 'Unknown'} - ${apiError.message}`
       });
     }
 
-    // Test 4: SmartAdd endpoint (without data)
+    // Test 4: SmartAdd Endpoint (basic connectivity)
     try {
-      const response = await axios.post(getApiUrl('/smart-add/'), { photos: [] }, { timeout: 5000 });
+      // Send a minimal request to test endpoint existence
+      const response = await axios.post(getApiUrl('/smart-add/'), {
+        photos: ['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==']
+      });
+      
       results.push({
         test: 'SmartAdd Endpoint',
         status: 'success',
-        message: 'SmartAdd endpoint accessible',
-        details: response.data
+        message: 'SmartAdd endpoint is accessible',
+        data: response.data
       });
-    } catch (error: any) {
-      results.push({
-        test: 'SmartAdd Endpoint',
-        status: error.response?.status === 422 ? 'warning' : 'error',
-        message: error.response?.status === 422 ? 'Endpoint accessible (validation error expected)' : 'SmartAdd endpoint failed',
-        details: {
-          status: error.response?.status,
-          message: error.message,
-          data: error.response?.data
-        }
-      });
-    }
-
-    setTestResults(results);
-    setIsRunning(false);
-  };
-
-  const testSmartAdd = async () => {
-    setSmartAddResult({ status: 'testing', message: 'Testing SmartAdd functionality...' });
-    
-    try {
-      // Create a simple test image (1x1 pixel red image in base64)
-      const testImageBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
-      
-      const apiUrl = getApiUrl('/smart-add/');
-      console.log('🧪 Testing SmartAdd at:', apiUrl);
-      
-      const response = await axios.post(apiUrl, {
-        photos: [testImageBase64]
-      });
-      
-      console.log('✅ SmartAdd test successful:', response.data);
-      setSmartAddResult({ 
-        status: 'success', 
-        message: `SmartAdd working! Confidence: ${Math.round(response.data.confidence * 100)}%` 
-      });
-    } catch (error) {
-      console.error('❌ SmartAdd test failed:', error);
-      
-      let errorMessage = 'SmartAdd test failed';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
-        if (axiosError.response) {
-          errorMessage = `HTTP ${axiosError.response.status}: ${axiosError.response.data?.detail || axiosError.response.statusText}`;
-        } else if (axiosError.request) {
-          errorMessage = 'No response from server';
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      if (apiError.response?.status === 200) {
+        // If we get a 200 but it's an "error" response, the endpoint is working
+        results.push({
+          test: 'SmartAdd Endpoint',
+          status: 'success',
+          message: 'SmartAdd endpoint is accessible (API key needed for full functionality)'
+        });
+      } else {
+        results.push({
+          test: 'SmartAdd Endpoint',
+          status: 'error',
+          message: `Error: ${apiError.response?.status || 'Unknown'} - ${apiError.message}`
+        });
       }
-      
-      setSmartAddResult({ status: 'error', message: errorMessage });
     }
+
+    setResults(results);
+    setIsLoading(false);
   };
 
-  useEffect(() => {
-    runTests();
-  }, []);
+  const getStatusIcon = (status: 'success' | 'error') => {
+    return status === 'success' ? 
+      <CheckCircle className="h-4 w-4 text-green-500" /> : 
+      <AlertCircle className="h-4 w-4 text-red-500" />;
+  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'bg-green-500';
-      case 'warning': return 'bg-yellow-500';
-      case 'error': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
+  const getStatusBadge = (status: 'success' | 'error') => {
+    return (
+      <Badge variant={status === 'success' ? 'default' : 'destructive'}>
+        {status === 'success' ? 'PASS' : 'FAIL'}
+      </Badge>
+    );
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Zap className="h-5 w-5" />
           Connection Test
-          <div className="space-x-2">
-            <Button onClick={runTests} disabled={isRunning}>
-              {isRunning ? 'Running...' : 'Rerun Tests'}
-            </Button>
-            <Button onClick={testSmartAdd} variant="outline">
-              Test SmartAdd
-            </Button>
-          </div>
         </CardTitle>
+        <CardDescription>
+          Test connectivity to the Stuf API backend and verify all endpoints are working correctly.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* SmartAdd Test Result */}
-        {smartAddResult.status && (
-          <div className={`p-4 rounded border ${
-            smartAddResult.status === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-            smartAddResult.status === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-            'bg-blue-50 border-blue-200 text-blue-800'
-          }`}>
-            <div className="font-medium">SmartAdd Test</div>
-            <div className="text-sm mt-1">{smartAddResult.message}</div>
+        <Button 
+          onClick={runTests} 
+          disabled={isLoading}
+          className="w-full"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Running Tests...
+            </>
+          ) : (
+            'Run Connection Tests'
+          )}
+        </Button>
+
+        {results.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="font-semibold">Test Results:</h3>
+            {results.map((result, index) => (
+              <div key={index} className="flex items-start justify-between p-3 border rounded-lg">
+                <div className="flex items-start gap-3 flex-1">
+                  {getStatusIcon(result.status)}
+                  <div className="flex-1">
+                    <div className="font-medium">{result.test}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {result.message}
+                    </div>
+                    {result.data != null && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-muted-foreground cursor-pointer">
+                          View Response Data
+                        </summary>
+                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto max-h-32">
+                          {typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
+                {getStatusBadge(result.status)}
+              </div>
+            ))}
+            
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <div className="text-sm">
+                <strong>Summary:</strong> {results.filter(r => r.status === 'success').length} of {results.length} tests passed
+              </div>
+            </div>
           </div>
         )}
-        {testResults.map((result, index) => (
-          <div key={index} className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">{result.test}</h3>
-              <Badge className={`${getStatusColor(result.status)} text-white`}>
-                {result.status.toUpperCase()}
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mb-2">{result.message}</p>
-            {result.details && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">Details</summary>
-                <pre className="mt-2 p-2 bg-muted rounded overflow-auto">
-                  {JSON.stringify(result.details, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        ))}
       </CardContent>
     </Card>
   );

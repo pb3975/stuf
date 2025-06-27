@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import type { Item } from '../types/Item';
+import type { ApiError } from '../types/api-error';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +9,6 @@ import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import {
@@ -33,7 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { 
   Search, 
-  Filter, 
   SortAsc, 
   SortDesc, 
   X, 
@@ -78,7 +75,7 @@ const ItemList: React.FC = () => {
       }
       // Check if it's an axios error
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
+        const axiosError = error as ApiError;
         if (axiosError.response) {
           console.error('Response status:', axiosError.response.status);
           console.error('Response data:', axiosError.response.data);

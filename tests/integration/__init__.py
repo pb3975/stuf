@@ -1,0 +1,1 @@
+# Integration tests for Stuf inventory management system 
