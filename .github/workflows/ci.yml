@@ -91,19 +91,20 @@ jobs:
       
     - name: Run frontend tests
       working-directory: ./frontend
-      run: npm run test || true
+      run: npm run test:ci
       
     - name: Build frontend
       working-directory: ./frontend
       run: npm run build
       
-    - name: Upload frontend coverage
-      if: matrix.node-version == 18
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./frontend/coverage/lcov.info
-        flags: frontend
-        name: frontend-coverage
+    # Coverage disabled in simplified tests
+    # - name: Upload frontend coverage
+    #   if: matrix.node-version == 18
+    #   uses: codecov/codecov-action@v3
+    #   with:
+    #     file: ./frontend/coverage/lcov.info
+    #     flags: frontend
+    #     name: frontend-coverage
 
   security-scan:
     name: Security Scan

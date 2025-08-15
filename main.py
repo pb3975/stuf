@@ -163,7 +163,7 @@ def update_item(item_id: int, updated_item: ItemCreate, db: Session = Depends(ge
     item.name = updated_item.name
     item.category = updated_item.category
     item.quantity = updated_item.quantity
-    item.custom_attributes = updated_item.custom_attributes
+    item.custom_attributes = updated_item.custom_attributes or {}
     item.image_url = updated_item.image_url
     db.commit()
     db.refresh(item)
