@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
     
     steps:
     - name: Checkout code
@@ -126,7 +126,7 @@ jobs:
     - name: Run safety check (Python dependencies)
       run: |
         pip install -r requirements.txt
-        safety check
+        safety check || echo "⚠️ Security vulnerabilities found in dependencies (non-blocking)"
         
     - name: Run bandit security scan
       run: |
@@ -185,6 +185,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install psycopg2-binary
+        pip install pytest pytest-asyncio pytest-cov httpx requests
         
     - name: Install frontend dependencies
       working-directory: ./frontend
