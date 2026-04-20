@@ -27,19 +27,38 @@ def api_server():
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
-    
-    # Wait for server to start
-    time.sleep(3)
-    
-    # Check if server is running
-    try:
-        response = requests.get("http://localhost:8000/docs", timeout=5)
-        if response.status_code != 200:
-            raise Exception("Server not responding")
-    except Exception as e:
+
+    # Poll for up to 30s; LiteLLM import + DB init can take several seconds on CI.
+    deadline = time.monotonic() + 30
+    last_exc = None
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            raise Exception(
+                "Server exited during startup "
+                f"(code={process.returncode}).\n"
+                f"stdout:\n{stdout.decode(errors='replace')}\n"
+                f"stderr:\n{stderr.decode(errors='replace')}"
+            )
+        try:
+            response = requests.get("http://localhost:8000/docs", timeout=2)
+            if response.status_code == 200:
+                break
+        except requests.RequestException as e:
+            last_exc = e
+        time.sleep(0.5)
+    else:
         process.terminate()
-        process.wait()
-        raise Exception(f"Failed to start server: {e}")
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+        raise Exception(
+            f"Server did not respond within 30s. Last error: {last_exc}\n"
+            f"stdout:\n{stdout.decode(errors='replace')}\n"
+            f"stderr:\n{stderr.decode(errors='replace')}"
+        )
     
     yield "http://localhost:8000"
     
