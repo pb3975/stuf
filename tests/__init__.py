@@ -1,0 +1,1 @@
+# Test package for Stuf inventory management system 

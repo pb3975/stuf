@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
@@ -14,20 +13,18 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { 
-  Camera, 
   Loader2, 
-  CheckCircle, 
   AlertCircle, 
   Sparkles, 
   ImageIcon,
   DollarSign,
   Calendar,
   Layers,
-  Plus,
   X
 } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import { getApiUrl } from '../lib/config';
+import type { SmartAddSuggestion } from '../types/api-error';
 
 interface EnhancedSmartAddResponse {
   success: boolean;
@@ -36,7 +33,7 @@ interface EnhancedSmartAddResponse {
     name: string;
     category: string;
     quantity: number;
-    custom_attributes: Record<string, any>;
+    custom_attributes: Record<string, string | number | boolean>;
     confidence: number;
     similar_items?: Array<{
       id: number;
@@ -49,7 +46,7 @@ interface EnhancedSmartAddResponse {
     name: string;
     category: string;
     quantity: number;
-    custom_attributes: Record<string, any>;
+    custom_attributes: Record<string, string | number | boolean>;
     similar_items?: Array<{
       id: number;
       name: string;
@@ -64,8 +61,8 @@ interface EnhancedSmartAddResponse {
 }
 
 interface EnhancedSmartAddProps {
-  onSuggestionsReady: (suggestions: any) => void;
-  onBatchResults: (results: any[]) => void;
+  onSuggestionsReady: (suggestions: SmartAddSuggestion) => void;
+  onBatchResults: (results: SmartAddSuggestion[]) => void;
 }
 
 const EnhancedSmartAdd: React.FC<EnhancedSmartAddProps> = ({ 

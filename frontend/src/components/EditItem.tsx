@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import type { Item } from '../types/Item';
+import type { CustomAttribute } from '../types/api-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +14,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Trash2, Plus, ArrowLeft, Save } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { getApiUrl, getAssetUrl } from '../lib/config';
 
 const EditItem: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [item, setItem] = useState<Partial<Item>>({});
-  const [customAttributes, setCustomAttributes] = useState<{ key: string, value: any }[]>([]);
+  const [customAttributes, setCustomAttributes] = useState<CustomAttribute[]>([]);
   const [newImage, setNewImage] = useState<File | null>(null);
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,7 +31,12 @@ const EditItem: React.FC = () => {
         const response = await axios.get(getApiUrl(`/items/${id}`));
         setItem(response.data);
         if (response.data.custom_attributes) {
-          setCustomAttributes(Object.entries(response.data.custom_attributes).map(([key, value]) => ({ key, value })));
+          setCustomAttributes(Object.entries(response.data.custom_attributes).map(([key, value]) => ({ 
+            key, 
+            value: typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' 
+              ? value 
+              : String(value)
+          })));
         }
       } catch (error) {
         console.error('Error fetching item:', error);
@@ -101,7 +106,7 @@ const EditItem: React.FC = () => {
     const attributesObject = customAttributes.reduce((acc, attr) => {
       if (attr.key) acc[attr.key] = attr.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, string | number | boolean>);
 
     try {
       const updatedItem = { ...item, image_url: imageUrl, custom_attributes: attributesObject };
@@ -242,7 +247,7 @@ const EditItem: React.FC = () => {
                       <Input
                         type="text"
                         placeholder="Value"
-                        value={attr.value}
+                        value={String(attr.value)}
                         onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
                         className="flex-1 h-12 sm:h-10"
                       />
