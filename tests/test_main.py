@@ -192,12 +192,15 @@ def test_increment_item_quantity(client):
     assert updated_item["quantity"] == 8
 
 
-def test_smart_add_without_api_key(client):
+def test_smart_add_without_api_key(client, monkeypatch):
     """Test SmartAdd without API key returns appropriate error"""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_AI_API_KEY", raising=False)
+
     smart_add_data = {
         "photos": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="]
     }
-    
+
     response = client.post("/smart-add/", json=smart_add_data)
     # Should return error about API key
     assert response.status_code == 200

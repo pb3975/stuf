@@ -10,7 +10,7 @@ import os
 import shutil
 import qrcode
 from qrcode.constants import ERROR_CORRECT_L
-import google.generativeai as genai
+import litellm
 import json
 import base64
 from PIL import Image
@@ -20,6 +20,25 @@ import re
 from datetime import datetime, timedelta
 
 load_dotenv()
+
+# LiteLLM reads GEMINI_API_KEY; stuf has historically used GOOGLE_AI_API_KEY.
+# Alias for backwards compat so existing .env files keep working.
+if os.getenv("GOOGLE_AI_API_KEY") and not os.getenv("GEMINI_API_KEY"):
+    os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_AI_API_KEY"]
+
+SMART_ADD_MODEL = os.getenv("SMART_ADD_MODEL", "gemini/gemini-2.0-flash-exp")
+
+_PROVIDER_KEY_ENV: Dict[str, str] = {
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "azure": "AZURE_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "groq": "GROQ_API_KEY",
+    # Local/self-hosted providers don't need a key.
+    "ollama": "",
+    "ollama_chat": "",
+}
 
 app = FastAPI(title="Stuf - Smart Inventory Management", description="API for managing household items like 3D printer filament, ammunition, IoT supplies, etc.")
 
@@ -192,6 +211,72 @@ def generate_all_qr_codes(db: Session = Depends(get_db)):
             db.commit()
     return {"detail": "QR codes generated for all existing items."}
 
+def _smart_add_provider() -> str:
+    """Provider prefix parsed from SMART_ADD_MODEL (e.g. 'gemini/gemini-2.0-...' -> 'gemini')."""
+    return SMART_ADD_MODEL.split("/", 1)[0] if "/" in SMART_ADD_MODEL else SMART_ADD_MODEL
+
+
+def _smart_add_key_error() -> Optional[str]:
+    """Return a human-readable error if the configured provider is missing its API key, else None."""
+    provider = _smart_add_provider()
+    if provider not in _PROVIDER_KEY_ENV:
+        return (
+            f"Unknown SMART_ADD_MODEL provider '{provider}'. "
+            f"Supported: {', '.join(sorted(_PROVIDER_KEY_ENV))}"
+        )
+    key_env = _PROVIDER_KEY_ENV[provider]
+    if key_env and not os.getenv(key_env):
+        return f"API key not configured: set {key_env} to use SMART_ADD_MODEL={SMART_ADD_MODEL}"
+    return None
+
+
+def _data_uri(photo_b64: str) -> str:
+    """Normalize a raw base64 string or existing data URI into a provider-ready data URI."""
+    if photo_b64.startswith("data:"):
+        return photo_b64
+    return f"data:image/jpeg;base64,{photo_b64}"
+
+
+def _validate_photos(photos: List[str]) -> Optional[str]:
+    """Confirm each photo decodes as a valid image. Returns an error message on failure, None on success."""
+    for photo_b64 in photos:
+        try:
+            raw = photo_b64.split(",")[1] if "," in photo_b64 else photo_b64
+            image_data = base64.b64decode(raw)
+            Image.open(io.BytesIO(image_data)).verify()
+        except Exception as e:
+            return f"Failed to process image: {e}"
+    return None
+
+
+def _call_smart_add_llm(prompt: str, photos: List[str]) -> str:
+    """Call the configured LLM with a text prompt and base64 images. Returns raw text response."""
+    content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for photo in photos:
+        content.append({"type": "image_url", "image_url": {"url": _data_uri(photo)}})
+    response = litellm.completion(
+        model=SMART_ADD_MODEL,
+        messages=[{"role": "user", "content": content}],
+    )
+    return response.choices[0].message.content
+
+
+def _parse_json_block(text: str) -> Dict[str, Any]:
+    """Extract and parse a JSON object from an LLM response (tolerates ```json fences and prose)."""
+    text = text.strip()
+    if "```json" in text:
+        start = text.find("```json") + 7
+        end = text.find("```", start)
+        json_text = text[start:end].strip()
+    elif "{" in text:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        json_text = text[start:end]
+    else:
+        raise ValueError("No JSON found in response")
+    return json.loads(json_text)
+
+
 class SmartAddRequest(BaseModel):
     photos: List[str]  # Base64 encoded images
 
@@ -204,41 +289,23 @@ class SmartAddResponse(BaseModel):
 @app.post("/smart-add/", response_model=SmartAddResponse)
 async def smart_add_analyze(request: SmartAddRequest, db: Session = Depends(get_db)):
     """
-    Analyze photos using Google Gemini to suggest item attributes
+    Analyze photos via the configured LLM provider (SMART_ADD_MODEL) to suggest item attributes.
     """
     try:
-        # Configure Gemini API
-        api_key = os.getenv("GOOGLE_AI_API_KEY")
-        if not api_key:
-            return SmartAddResponse(
-                success=False,
-                confidence=0.0,
-                error_message="Gemini API key not configured"
-            )
-        
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        
+        key_error = _smart_add_key_error()
+        if key_error:
+            return SmartAddResponse(success=False, confidence=0.0, error_message=key_error)
+
+        photos = request.photos[:3]  # Max 3 photos
+
+        photo_error = _validate_photos(photos)
+        if photo_error:
+            return SmartAddResponse(success=False, confidence=0.0, error_message=photo_error)
+
         # Get existing categories for context
         existing_categories = db.query(Item.category).distinct().all()
         categories_list = [cat[0] for cat in existing_categories]
-        
-        # Prepare images for Gemini
-        images = []
-        for photo_b64 in request.photos[:3]:  # Max 3 photos
-            try:
-                # Decode base64 image
-                image_data = base64.b64decode(photo_b64.split(',')[1] if ',' in photo_b64 else photo_b64)
-                image = Image.open(io.BytesIO(image_data))
-                images.append(image)
-            except Exception as e:
-                return SmartAddResponse(
-                    success=False,
-                    confidence=0.0,
-                    error_message=f"Failed to process image: {str(e)}"
-                )
-        
-        # Create prompt for Gemini with more confident language
+
         prompt = f"""
         Analyze these images and identify the household inventory item. Provide your most confident assessment without hedging language.
         
@@ -268,27 +335,10 @@ async def smart_add_analyze(request: SmartAddRequest, db: Session = Depends(get_
         - For quantity, count visible items or default to 1
         - Set confidence based on image clarity and your certainty of identification
         """
-        
-        # Send request to Gemini
-        response = model.generate_content([prompt] + images)
-        
-        # Parse response
-        response_text = response.text.strip()
-        
-        # Extract JSON from response (handle potential markdown formatting)
-        if "```json" in response_text:
-            json_start = response_text.find("```json") + 7
-            json_end = response_text.find("```", json_start)
-            json_text = response_text[json_start:json_end].strip()
-        elif "{" in response_text:
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-            json_text = response_text[json_start:json_end]
-        else:
-            raise ValueError("No JSON found in response")
-        
-        suggestions = json.loads(json_text)
-        
+
+        response_text = _call_smart_add_llm(prompt, photos)
+        suggestions = _parse_json_block(response_text)
+
         # Validate and clean suggestions
         confidence = float(suggestions.get('confidence', 0.5))
         
@@ -425,39 +475,19 @@ async def enhanced_smart_add_analyze(request: EnhancedSmartAddRequest, db: Sessi
     (Simplified version without barcode scanning)
     """
     try:
-        # Configure Gemini API
-        api_key = os.getenv("GOOGLE_AI_API_KEY")
-        if not api_key:
-            return EnhancedSmartAddResponse(
-                success=False,
-                confidence=0.0,
-                error_message="Gemini API key not configured"
-            )
-        
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        
-        # Get existing categories for context
+        key_error = _smart_add_key_error()
+        if key_error:
+            return EnhancedSmartAddResponse(success=False, confidence=0.0, error_message=key_error)
+
+        photos = request.photos[:5]  # Max 5 photos for enhanced mode
+
+        photo_error = _validate_photos(photos)
+        if photo_error:
+            return EnhancedSmartAddResponse(success=False, confidence=0.0, error_message=photo_error)
+
         existing_categories = db.query(Item.category).distinct().all()
         categories_list = [cat[0] for cat in existing_categories]
-        
-        # Prepare images for analysis
-        images = []
-        
-        for photo_b64 in request.photos[:5]:  # Max 5 photos for enhanced mode
-            try:
-                # Decode base64 image
-                image_data = base64.b64decode(photo_b64.split(',')[1] if ',' in photo_b64 else photo_b64)
-                image = Image.open(io.BytesIO(image_data))
-                images.append(image)
-                
-            except Exception as e:
-                return EnhancedSmartAddResponse(
-                    success=False,
-                    confidence=0.0,
-                    error_message=f"Failed to process image: {str(e)}"
-                )
-        
+
         # Enhanced prompt for batch processing and additional features
         if request.batch_mode:
             prompt = f"""
@@ -536,24 +566,9 @@ async def enhanced_smart_add_analyze(request: EnhancedSmartAddRequest, db: Sessi
             - For expiry dates, look for "exp", "best by", "use by" dates
             - Set confidence based on image clarity and identification certainty
             """
-        
-        # Send request to Gemini
-        response = model.generate_content([prompt] + images)
-        response_text = response.text.strip()
-        
-        # Extract JSON from response
-        if "```json" in response_text:
-            json_start = response_text.find("```json") + 7
-            json_end = response_text.find("```", json_start)
-            json_text = response_text[json_start:json_end].strip()
-        elif "{" in response_text:
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-            json_text = response_text[json_start:json_end]
-        else:
-            raise ValueError("No JSON found in response")
-        
-        ai_response = json.loads(json_text)
+
+        response_text = _call_smart_add_llm(prompt, photos)
+        ai_response = _parse_json_block(response_text)
         
         if request.batch_mode and "items" in ai_response:
             # Process batch results
